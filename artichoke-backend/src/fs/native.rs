@@ -5,7 +5,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::fs::{absolutize_relative_to, ExtensionHook, Filesystem};
+use crate::fs::{absolutize_relative_to, ExtensionHook};
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Native {
@@ -13,14 +13,18 @@ pub struct Native {
 }
 
 impl Native {
+    /// Create a new native virtual filesystem.
+    ///
+    /// This filesystem grants access to the host filesystem.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
-}
 
-impl Filesystem for Native {
-    fn is_file(&self, path: &Path) -> bool {
+    /// Check whether `path` points to a file in the virtual filesystem.
+    ///
+    /// This API is infallible and will return `false` for non-existent paths.
+    pub fn is_file(&self, path: &Path) -> bool {
         if let Ok(metadata) = fs::metadata(path) {
             !metadata.is_dir()
         } else {
@@ -28,26 +32,67 @@ impl Filesystem for Native {
         }
     }
 
-    fn read_file(&self, path: &Path) -> io::Result<Cow<'_, [u8]>> {
+    /// Read file contents for the file at `path`.
+    ///
+    /// Returns a byte slice of complete file contents. If `path` is relative,
+    /// it is absolutized relative to the current working directory of the
+    /// virtual file system.
+    ///
+    /// # Errors
+    ///
+    /// If `path` does not exist, an [`io::Error`] with error kind
+    /// [`io::ErrorKind::NotFound`] is returned.
+    pub fn read_file(&self, path: &Path) -> io::Result<Cow<'_, [u8]>> {
         Ok(fs::read(path)?.into())
     }
 
-    fn write_file(&mut self, path: &Path, buf: Cow<'static, [u8]>) -> io::Result<()> {
+    /// Write file contents into the virtual file system at `path`.
+    ///
+    /// Writes the full file contents. If any file contents already exist at
+    /// `path`, they are replaced. Extension hooks are preserved.
+    ///
+    /// # Errors
+    ///
+    /// If `path` does not exist, an [`io::Error`] with error kind
+    /// [`io::ErrorKind::NotFound`] is returned. See [`fs::write`] for further
+    /// discussion of the error modes of this API.
+    pub fn write_file(&mut self, path: &Path, buf: Cow<'static, [u8]>) -> io::Result<()> {
         fs::write(path, buf)
     }
 
-    fn get_extension(&self, path: &Path) -> Option<ExtensionHook> {
+    /// Retrieve an extension hook for the file at `path`.
+    ///
+    /// This API is infallible and will return `None` for non-existent paths.
+    ///
+    /// The native filesystem does not support extensions. This method always
+    /// returns [`None`].
+    pub fn get_extension(&self, path: &Path) -> Option<ExtensionHook> {
         let _ = path;
         None
     }
 
-    fn register_extension(&mut self, path: &Path, extension: ExtensionHook) -> io::Result<()> {
+    /// Write extension hook into the virtual file system at `path`.
+    ///
+    /// The native filesystem does not support extensions. All given extensions
+    /// result in an error.
+    ///
+    /// # Errors
+    ///
+    /// The native filesystem does not support extensions. All given extensions
+    /// result in an error with `ErrorKind::Other`.
+    pub fn register_extension(&mut self, path: &Path, extension: ExtensionHook) -> io::Result<()> {
         let _ = path;
         let _ = extension;
-        Ok(())
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "extensions are unsupported",
+        ))
     }
 
-    fn is_required(&self, path: &Path) -> bool {
+    /// Check whether a file at `path` has been required already.
+    ///
+    /// This API is infallible and will return `false` for non-existent paths.
+    pub fn is_required(&self, path: &Path) -> bool {
         if let Ok(cwd) = env::current_dir() {
             let path = absolutize_relative_to(path, &cwd);
             self.loaded_features.contains(&path)
@@ -56,7 +101,17 @@ impl Filesystem for Native {
         }
     }
 
-    fn mark_required(&mut self, path: &Path) -> io::Result<()> {
+    /// Mark a source at `path` as required on the interpreter.
+    ///
+    /// This metadata is used by `Kernel#require` and friends to enforce that
+    /// Ruby sources are only loaded into the interpreter once to limit side
+    /// effects.
+    ///
+    /// # Errors
+    ///
+    /// If `path` does not exist, an [`io::Error`] with error kind
+    /// [`io::ErrorKind::NotFound`] is returned.
+    pub fn mark_required(&mut self, path: &Path) -> io::Result<()> {
         let cwd = env::current_dir()?;
         let path = absolutize_relative_to(path, &cwd);
         self.loaded_features.insert(path);
