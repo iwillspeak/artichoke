@@ -24,6 +24,8 @@ impl Native {
     /// Check whether `path` points to a file in the virtual filesystem.
     ///
     /// This API is infallible and will return `false` for non-existent paths.
+    #[must_use]
+    #[allow(clippy::unused_self)]
     pub fn is_file(&self, path: &Path) -> bool {
         if let Ok(metadata) = fs::metadata(path) {
             !metadata.is_dir()
@@ -42,6 +44,7 @@ impl Native {
     ///
     /// If `path` does not exist, an [`io::Error`] with error kind
     /// [`io::ErrorKind::NotFound`] is returned.
+    #[allow(clippy::unused_self)]
     pub fn read_file(&self, path: &Path) -> io::Result<Cow<'_, [u8]>> {
         Ok(fs::read(path)?.into())
     }
@@ -56,6 +59,7 @@ impl Native {
     /// If `path` does not exist, an [`io::Error`] with error kind
     /// [`io::ErrorKind::NotFound`] is returned. See [`fs::write`] for further
     /// discussion of the error modes of this API.
+    #[allow(clippy::unused_self)]
     pub fn write_file(&mut self, path: &Path, buf: Cow<'static, [u8]>) -> io::Result<()> {
         fs::write(path, buf)
     }
@@ -66,6 +70,8 @@ impl Native {
     ///
     /// The native filesystem does not support extensions. This method always
     /// returns [`None`].
+    #[must_use]
+    #[allow(clippy::unused_self)]
     pub fn get_extension(&self, path: &Path) -> Option<ExtensionHook> {
         let _ = path;
         None
@@ -80,6 +86,7 @@ impl Native {
     ///
     /// The native filesystem does not support extensions. All given extensions
     /// result in an error with `ErrorKind::Other`.
+    #[allow(clippy::unused_self)]
     pub fn register_extension(&mut self, path: &Path, extension: ExtensionHook) -> io::Result<()> {
         let _ = path;
         let _ = extension;
@@ -92,6 +99,7 @@ impl Native {
     /// Check whether a file at `path` has been required already.
     ///
     /// This API is infallible and will return `false` for non-existent paths.
+    #[must_use]
     pub fn is_required(&self, path: &Path) -> bool {
         if let Ok(cwd) = env::current_dir() {
             let path = absolutize_relative_to(path, &cwd);

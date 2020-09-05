@@ -23,6 +23,7 @@ impl Hybrid {
     /// Check whether `path` points to a file in the virtual filesystem.
     ///
     /// This API is infallible and will return `false` for non-existent paths.
+    #[must_use]
     pub fn is_file(&self, path: &Path) -> bool {
         if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
             self.memory.is_file(path)
@@ -69,6 +70,7 @@ impl Hybrid {
     /// Retrieve an extension hook for the file at `path`.
     ///
     /// This API is infallible and will return `None` for non-existent paths.
+    #[must_use]
     pub fn get_extension(&self, path: &Path) -> Option<ExtensionHook> {
         if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
             self.memory.get_extension(path)
@@ -104,6 +106,7 @@ impl Hybrid {
     /// Check whether a file at `path` has been required already.
     ///
     /// This API is infallible and will return `false` for non-existent paths.
+    #[must_use]
     pub fn is_required(&self, path: &Path) -> bool {
         if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
             self.memory.is_required(path)

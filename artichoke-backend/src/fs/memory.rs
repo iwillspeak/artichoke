@@ -277,6 +277,7 @@ impl Memory {
     /// Check whether `path` points to a file in the virtual filesystem.
     ///
     /// This API is infallible and will return `false` for non-existent paths.
+    #[must_use]
     pub fn is_file(&self, path: &Path) -> bool {
         let path = absolutize_relative_to(path, &self.cwd);
         self.fs.contains_key(&path)
@@ -336,6 +337,7 @@ impl Memory {
     /// Retrieve an extension hook for the file at `path`.
     ///
     /// This API is infallible and will return `None` for non-existent paths.
+    #[must_use]
     pub fn get_extension(&self, path: &Path) -> Option<ExtensionHook> {
         let path = absolutize_relative_to(path, &self.cwd);
         if let Some(entry) = self.fs.get(&path) {
@@ -370,6 +372,7 @@ impl Memory {
     /// Check whether a file at `path` has been required already.
     ///
     /// This API is infallible and will return `false` for non-existent paths.
+    #[must_use]
     pub fn is_required(&self, path: &Path) -> bool {
         let path = absolutize_relative_to(path, &self.cwd);
         self.loaded_features.contains(&path)
