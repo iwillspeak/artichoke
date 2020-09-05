@@ -5,7 +5,9 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use crate::fs::{absolutize_relative_to, ExtensionHook, RUBY_LOAD_PATH};
+use crate::fs::{
+    absolutize_relative_to, ExtensionHook, MEMORY_FILESYSTEM_MOUNT_POINT, RUBY_LOAD_PATH,
+};
 
 const CODE_DEFAULT_CONTENTS: &[u8] = b"# virtual source file";
 
@@ -228,10 +230,14 @@ impl Default for Memory {
     /// Virtual filesystem with current working directory set to
     /// [`RUBY_LOAD_PATH`].
     fn default() -> Self {
+        let cwd = Path::new(RUBY_LOAD_PATH)
+            .strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT)
+            .unwrap_or_else(|_| Path::new(RUBY_LOAD_PATH))
+            .to_path_buf();
         Self {
             fs: HashMap::default(),
             loaded_features: HashSet::default(),
-            cwd: PathBuf::from(RUBY_LOAD_PATH),
+            cwd,
         }
     }
 }
@@ -256,10 +262,15 @@ impl Memory {
     where
         T: Into<PathBuf>,
     {
+        let cwd = cwd.into();
+        let cwd = cwd
+            .strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT)
+            .map(Path::to_path_buf)
+            .unwrap_or(cwd);
         Self {
             fs: HashMap::default(),
             loaded_features: HashSet::default(),
-            cwd: cwd.into(),
+            cwd,
         }
     }
 

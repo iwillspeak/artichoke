@@ -24,13 +24,20 @@ pub use hybrid::Hybrid;
 pub use memory::Memory;
 pub use native::Native;
 
+/// Directory at which the [in-memory filesystem](Memory) is mounted.
+///
+/// [`Hybrid`] filesystems mount the `Memory` filesystem at this path.
+/// `RUBY_LOAD_PATH` is found within this path prefix.
+pub const MEMORY_FILESYSTEM_MOUNT_POINT: &str = "/artichoke/virtual_root";
+
 /// Directory at which Ruby sources and extensions are stored in the virtual
 /// filesystem.
 ///
 /// `RUBY_LOAD_PATH` is the default current working directory for
 /// [`Memory`] filesystems.
 ///
-/// [`Hybrid`] filesystems mount the `Memory` filesystem at `RUBY_LOAD_PATH`.
+/// [`Hybrid`] filesystems locate the this path on a `Memory` filesystem below
+/// [`MEMORY_FILESYSTEM_MOUNT_POINT`].
 pub const RUBY_LOAD_PATH: &str = "/artichoke/virtual_root/src/lib";
 
 /// Function type for extension hooks stored in the virtual filesystem.

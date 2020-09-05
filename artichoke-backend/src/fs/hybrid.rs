@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::io;
 use std::path::Path;
 
-use crate::fs::{ExtensionHook, Memory, Native, RUBY_LOAD_PATH};
+use crate::fs::{ExtensionHook, Memory, Native, MEMORY_FILESYSTEM_MOUNT_POINT};
 
 #[derive(Default, Debug)]
 pub struct Hybrid {
@@ -14,7 +14,7 @@ impl Hybrid {
     /// Create a new hybrid virtual filesystem.
     ///
     /// This filesystem allows access to the host filesystem with an in-memory
-    /// filesystem mounted at [`RUBY_LOAD_PATH`].
+    /// filesystem mounted at [`MEMORY_FILESYSTEM_MOUNT_POINT`].
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -24,7 +24,11 @@ impl Hybrid {
     ///
     /// This API is infallible and will return `false` for non-existent paths.
     pub fn is_file(&self, path: &Path) -> bool {
-        self.memory.is_file(path) || self.native.is_file(path)
+        if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
+            self.memory.is_file(path)
+        } else {
+            self.native.is_file(path)
+        }
     }
 
     /// Read file contents for the file at `path`.
@@ -38,9 +42,11 @@ impl Hybrid {
     /// If `path` does not exist, an [`io::Error`] with error kind
     /// [`io::ErrorKind::NotFound`] is returned.
     pub fn read_file(&self, path: &Path) -> io::Result<Cow<'_, [u8]>> {
-        self.memory
-            .read_file(path)
-            .or_else(|_| self.native.read_file(path))
+        if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
+            self.memory.read_file(path)
+        } else {
+            self.native.read_file(path)
+        }
     }
 
     /// Write file contents into the virtual file system at `path`.
@@ -53,7 +59,7 @@ impl Hybrid {
     /// If access to the [`Native`] filesystem returns an error, the error is
     /// returned. See [`Native::write_file`].
     pub fn write_file(&mut self, path: &Path, buf: Cow<'static, [u8]>) -> io::Result<()> {
-        if path.starts_with(RUBY_LOAD_PATH) {
+        if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
             self.memory.write_file(path, buf)
         } else {
             self.native.write_file(path, buf)
@@ -64,7 +70,11 @@ impl Hybrid {
     ///
     /// This API is infallible and will return `None` for non-existent paths.
     pub fn get_extension(&self, path: &Path) -> Option<ExtensionHook> {
-        self.memory.get_extension(path)
+        if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
+            self.memory.get_extension(path)
+        } else {
+            None
+        }
     }
 
     /// Write extension hook into the virtual file system at `path`.
@@ -78,17 +88,28 @@ impl Hybrid {
     ///
     /// # Errors
     ///
-    /// This API is currently infallible but returns [`io::Result`] to reserve
-    /// the ability to return errors in the future.
+    /// If the given path does not resolve to the virtual filesystem, an error
+    /// is returned.
     pub fn register_extension(&mut self, path: &Path, extension: ExtensionHook) -> io::Result<()> {
-        self.memory.register_extension(path, extension)
+        if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
+            self.memory.register_extension(path, extension)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Native filesystem does not support extensions",
+            ))
+        }
     }
 
     /// Check whether a file at `path` has been required already.
     ///
     /// This API is infallible and will return `false` for non-existent paths.
     pub fn is_required(&self, path: &Path) -> bool {
-        self.memory.is_required(path) || self.native.is_required(path)
+        if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
+            self.memory.is_required(path)
+        } else {
+            self.native.is_required(path)
+        }
     }
 
     /// Mark a source at `path` as required on the interpreter.
@@ -102,7 +123,7 @@ impl Hybrid {
     /// If `path` does not exist, an [`io::Error`] with error kind
     /// [`io::ErrorKind::NotFound`] is returned.
     pub fn mark_required(&mut self, path: &Path) -> io::Result<()> {
-        if path.starts_with(RUBY_LOAD_PATH) {
+        if let Ok(path) = path.strip_prefix(MEMORY_FILESYSTEM_MOUNT_POINT) {
             self.memory.mark_required(path)
         } else {
             self.native.mark_required(path)
